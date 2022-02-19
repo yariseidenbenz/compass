@@ -1,5 +1,6 @@
 from compass.mpas_core import MpasCore
 from compass.landice.tests.circular_shelf import CircularShelf
+from compass.landice.tests.confined_shelf import ConfinedShelf
 from compass.landice.tests.dome import Dome
 from compass.landice.tests.eismint2 import Eismint2
 from compass.landice.tests.enthalpy_benchmark import EnthalpyBenchmark
@@ -20,6 +21,7 @@ class Landice(MpasCore):
         super().__init__(name='landice')
 
         self.add_test_group(CircularShelf(mpas_core=self))
+        self.add_test_group(ConfinedShelf(mpas_core=self))
         self.add_test_group(Dome(mpas_core=self))
         self.add_test_group(Eismint2(mpas_core=self))
         self.add_test_group(EnthalpyBenchmark(mpas_core=self))
