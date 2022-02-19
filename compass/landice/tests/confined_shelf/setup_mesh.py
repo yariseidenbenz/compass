@@ -101,7 +101,8 @@ def _setup_confined_shelf_initial_conditions(config, logger, filename):
     nVertLevels = len(gridfile.dimensions['nVertLevels'])
     maxEdges = len(gridfile.dimensions['maxEdges'])
     if nVertLevels != 5:
-         logger.info('nVerLevels in the supplied file was '+ str(nVertLevels)+ '.  5 levels are typically used with this test case.')
+        logger.info(f'nVerLevels in the supplied file was {str(nVertLevels)}.\n'
+                    f' 5 levels are typically used with this test case.')
     # Get variables
     xCell = gridfile.variables['xCell'][:]
     yCell = gridfile.variables['yCell'][:]
@@ -109,37 +110,43 @@ def _setup_confined_shelf_initial_conditions(config, logger, filename):
     yEdge = gridfile.variables['yEdge'][:]
     xVertex = gridfile.variables['xVertex'][:]
     yVertex = gridfile.variables['yVertex'][:]
-    cellsOnCell= gridfile.variables['cellsOnCell'][:]
+    cellsOnCell = gridfile.variables['cellsOnCell'][:]
 
-    # put the domain origin in the center of the center cell in the x-direction and in the 2nd row on the y-direction
+    # put the domain origin in the center of the center cell in the x-direction
+    # and in the 2nd row on the y-direction
     # Only do this if it appears this has not already been done:
-    if xVertex[:].min() < 15000.0:  # 15000 is to allow for the periodic cells to have been removed from the mesh
-       logger.info('Shifting domain origin to center of shelf front, because it appears that this has not yet been done.')
-       unique_xs=np.array(sorted(list(set(xCell[:]))))
-       targetx = (unique_xs.max() - unique_xs.min()) / 2.0 + unique_xs.min()  # center of domain range
-       best_x=unique_xs[ np.absolute((unique_xs - targetx)) == np.min(np.absolute(unique_xs - (targetx))) ][0]
-       logger.info('Found a best x value to use of:' + str(best_x))
-    
-       unique_ys=np.array(sorted(list(set(yCell[:]))))
-    #   print unique_ys
-       best_y = unique_ys[5]  # get 6th value
-       logger.info('Found a best y value to use of:' + str(best_y))
-    
-       xShift = -1.0 * best_x
-       yShift = -1.0 * best_y
-       xCell[:] = xCell[:] + xShift
-       yCell[:] = yCell[:] + yShift
-       xEdge[:] = xEdge[:] + xShift
-       yEdge[:] = yEdge[:] + yShift
-       xVertex[:] = xVertex[:] + xShift
-       yVertex[:] = yVertex[:] + yShift
-    
-       gridfile.variables['xCell'][:] = xCell[:]
-       gridfile.variables['yCell'][:] = yCell[:]
-       gridfile.variables['xEdge'][:] = xEdge[:]
-       gridfile.variables['yEdge'][:] = yEdge[:]
-       gridfile.variables['xVertex'][:] = xVertex[:]
-       gridfile.variables['yVertex'][:] = yVertex[:]
+    # 15000 is to allow for the periodic cells to have been removed from the
+    # mesh
+    if xVertex[:].min() < 15000.0:
+        logger.info('Shifting domain origin to center of shelf front, because '
+                    'it appears that this has not yet been done.')
+        unique_xs = np.array(sorted(list(set(xCell[:]))))
+        # center of domain range
+        targetx = (unique_xs.max() - unique_xs.min()) / 2.0 + unique_xs.min()
+        best_x = unique_xs[np.absolute((unique_xs - targetx)) ==
+                           np.min(np.absolute(unique_xs - targetx))][0]
+        logger.info('Found a best x value to use of:' + str(best_x))
+
+        unique_ys = np.array(sorted(list(set(yCell[:]))))
+        #   print unique_ys
+        best_y = unique_ys[5]  # get 6th value
+        logger.info(f'Found a best y value to use of:{str(best_y)}')
+
+        xShift = -1.0 * best_x
+        yShift = -1.0 * best_y
+        xCell[:] = xCell[:] + xShift
+        yCell[:] = yCell[:] + yShift
+        xEdge[:] = xEdge[:] + xShift
+        yEdge[:] = yEdge[:] + yShift
+        xVertex[:] = xVertex[:] + xShift
+        yVertex[:] = yVertex[:] + yShift
+
+        gridfile.variables['xCell'][:] = xCell[:]
+        gridfile.variables['yCell'][:] = yCell[:]
+        gridfile.variables['xEdge'][:] = xEdge[:]
+        gridfile.variables['yEdge'][:] = yEdge[:]
+        gridfile.variables['xVertex'][:] = xVertex[:]
+        gridfile.variables['yVertex'][:] = yVertex[:]
     
     #   print np.array(sorted(list(set(yCell[:]))))
     
@@ -148,49 +155,55 @@ def _setup_confined_shelf_initial_conditions(config, logger, filename):
     L = 200000.0
     
     shelfMask = np.logical_and( 
-                      np.logical_and(xCell[:]>=-L/2.0, xCell[:]<=L/2.0), 
-                      np.logical_and(yCell[:]>=0.0, yCell[:]<=L) ) 
+                      np.logical_and(xCell[:] >= -L/2.0, xCell[:] <= L/2.0),
+                      np.logical_and(yCell[:] >= 0.0, yCell[:] <= L))
     # now grow it by one cell
-    shelfMaskWithGround = np.zeros( (nCells,), dtype=np.int16)
+    shelfMaskWithGround = np.zeros((nCells,), dtype=np.int16)
     for c in range(nCells):
         if shelfMask[c] == 1:
             for n in range(maxEdges):
-                neighbor = cellsOnCell[c,n] - 1 # fortran to python indexing
+                # fortran to python indexing
+                neighbor = cellsOnCell[c, n] - 1
                 if neighbor >= 0:
                     shelfMaskWithGround[neighbor] = 1
     # but remove the south side extension
-    shelfMaskWithGround[ np.nonzero(yCell[:]<0.0)[0] ] = 0
+    shelfMaskWithGround[np.nonzero(yCell[:] < 0.0)[0]] = 0
     
     thickness = gridfile.variables['thickness'][:]
-    thickness[:] = 0.0  # initialize to 0.0
-    thickness[0, np.nonzero(shelfMaskWithGround==1)[0] ] = 500.0
+    thickness[:] = 0.0
+    thickness[0, np.nonzero(shelfMaskWithGround == 1)[0]] = 500.0
     gridfile.variables['thickness'][:] = thickness[:]
     gridfile.sync()
     del thickness
     
     # flat bed at -2000 m everywhere but grounded around the edges
-    bedTopography = gridfile.variables['bedTopography'][0,:]
-    bedTopography[np.nonzero(shelfMask==1)[0]] = -2000.0
-    bedTopography[np.nonzero(shelfMask==0)[0]] = -440.0
-    gridfile.variables['bedTopography'][0,:] = bedTopography[:]
+    bedTopography = gridfile.variables['bedTopography'][0, :]
+    bedTopography[np.nonzero(shelfMask == 1)[0]] = -2000.0
+    bedTopography[np.nonzero(shelfMask == 0)[0]] = -440.0
+    gridfile.variables['bedTopography'][0, :] = bedTopography[:]
     gridfile.sync()
     del bedTopography
     
     # Dirichlet velocity mask
     kinbcmask = gridfile.variables['dirichletVelocityMask'][:]
     kinbcmask[:] = 0
-    #kinbcmask[:, np.nonzero(shelfMask==0)[0], :] = 1
-    kinbcmask[:, np.nonzero(np.logical_and(shelfMask==0, shelfMaskWithGround==1))[0], :] = 1
-    #kinbcmask[:, np.nonzero(yCell[:]<0.0)[0] ] = 0
-    # Need to extend this mask south by one cell so that the extended FEM mask will still have the 0 velo on the edges...
-    theSides = Counter(xCell[ np.nonzero(kinbcmask[0,:])[0] ]).most_common(4)  # need the 4 most common x positions.
+    # kinbcmask[:, np.nonzero(shelfMask==0)[0], :] = 1
+    kinbcmask[:, np.nonzero(
+        np.logical_and(shelfMask == 0, shelfMaskWithGround == 1))[0], :] = 1
+    # kinbcmask[:, np.nonzero(yCell[:]<0.0)[0] ] = 0
+    # Need to extend this mask south by one cell so that the extended FEM mask
+    # will still have the 0 velo on the edges...
+    # need the 4 most common x positions.
+    theSides = Counter(xCell[np.nonzero(kinbcmask[0, :])[0]]).most_common(4)
     for side in theSides:
-        thesideindices = np.nonzero( np.logical_and( xCell[:] == side[0] , yCell[:] <= 0.0 ) )[0]
+        thesideindices = np.nonzero(np.logical_and(xCell[:] == side[0],
+                                                   yCell[:] <= 0.0))[0]
         kinbcmask[:, thesideindices] = 1
-    # Now mark Dirichlet everywhere outside of the "box" to prevent Albany from calculating the extended cell solution there
+    # Now mark Dirichlet everywhere outside of the "box" to prevent Albany
+    # from calculating the extended cell solution there
     kinbcmask[:, xCell[:] < -L/2.0] = 1
-    kinbcmask[:, xCell[:] >  L/2.0] = 1
-    kinbcmask[:, yCell[:] >  L] = 1
+    kinbcmask[:, xCell[:] > L/2.0] = 1
+    kinbcmask[:, yCell[:] > L] = 1
     gridfile.variables['dirichletVelocityMask'][:] = kinbcmask[:]
     gridfile.sync()
     del kinbcmask
@@ -209,13 +222,12 @@ def _setup_confined_shelf_initial_conditions(config, logger, filename):
     SMB = gridfile.variables['sfcMassBal'][:]
     SMB[:] = 0.0  # m/yr
     # Convert from units of m/yr to kg/m2/s using an assumed ice density
-    SMB[:] = SMB[:] *910.0/(3600.0*24.0*365.0)
+    SMB[:] = SMB[:] * 910.0/(3600.0*24.0*365.0)
     gridfile.variables['sfcMassBal'][:] = SMB[:]
     gridfile.sync()
     del SMB
     
     gridfile.close()
     
-    logger.info('Successfully added confined-shelf initial conditions to: ' + filename)
-    
-    
+    logger.info(f'Successfully added confined-shelf initial conditions to:'
+                f' {filename}')
