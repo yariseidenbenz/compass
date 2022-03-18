@@ -20,13 +20,13 @@ jobs:
   strategy:
     matrix:
       nompi:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'nompi'
       openmpi:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'openmpi'
       mpich:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'mpich'
 
   steps:
@@ -44,7 +44,7 @@ jobs:
 
   - bash: |
       eval "$(conda shell.bash hook)"
-      conda mambabuild -m ci/mpi_$(mpi).yaml conda/recipe
+      conda mambabuild -m ci/mpi_$(mpi)_python${PYTHON_VERSION}.yaml conda/recipe
     displayName: Build COMPASS metapackage
 
   - bash: |
@@ -163,13 +163,13 @@ jobs:
   strategy:
     matrix:
       nompi:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'nompi'
       openmpi:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'openmpi'
       mpich:
-        python.version: '3.8'
+        python.version: '3.9'
         mpi: 'mpich'
 
   steps:
@@ -186,11 +186,11 @@ jobs:
       conda config --set channel_priority strict
       conda install --yes python=$PYTHON_VERSION conda conda-build mamba boa
       conda update --all --yes
-    displayName: CUpdate conda base environment
+    displayName: Update conda base environment
 
   - bash: |
       eval "$(conda shell.bash hook)"
-      conda mambabuild -m ci/mpi_$(mpi).yaml conda/recipe
+      conda mambabuild -m ci/mpi_$(mpi)_python${PYTHON_VERSION}.yaml conda/recipe
     displayName: Build COMPASS metapackage
 
   - bash: |

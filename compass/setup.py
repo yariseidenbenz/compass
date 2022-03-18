@@ -42,7 +42,7 @@ def setup_cases(tests=None, numbers=None, config_file=None, machine=None,
         A directory that will serve as the base for creating case directories
 
     baseline_dir : str, optional
-        Location of baseslines that can be compared to
+        Location of baselines that can be compared to
 
     mpas_model_path : str, optional
         The relative or absolute path to the root of a branch where the MPAS
@@ -76,6 +76,10 @@ def setup_cases(tests=None, numbers=None, config_file=None, machine=None,
 
     if config_file is None and machine is None:
         raise ValueError('At least one of config_file and machine is needed.')
+
+    if config_file is not None and not os.path.exists(config_file):
+        raise FileNotFoundError(
+            f'The user config file wasn\'t found: {config_file}')
 
     if tests is None and numbers is None:
         raise ValueError('At least one of tests or numbers is needed.')
@@ -129,6 +133,8 @@ def setup_cases(tests=None, numbers=None, config_file=None, machine=None,
                                  'test_cases'.format(path))
             if cached is not None:
                 cached_steps[path] = cached[index]
+            else:
+                cached_steps[path] = list()
             test_cases[path] = all_test_cases[path]
 
     # get the MPAS core of the first test case.  We'll assume all tests are
@@ -197,7 +203,7 @@ def setup_case(path, test_case, config_file, machine, machine_info, work_dir,
         A directory that will serve as the base for creating case directories
 
     baseline_dir : str
-        Location of baseslines that can be compared to
+        Location of baselines that can be compared to
 
     mpas_model_path : str
         The relative or absolute path to the root of a branch where the MPAS

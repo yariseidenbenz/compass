@@ -15,7 +15,6 @@ source:
   path: ../..
 
 build:
-  noarch: python
   script: {{ PYTHON }} -m pip install . --no-deps -vv
   number: {{ build }}
   {% if mpi != "nompi" %}
@@ -35,11 +34,11 @@ build:
 
 requirements:
   host:
-    - python >=3.6,<3.10
+    - python
     - pip
     - setuptools
   run:
-    - python >=3.6,<3.10
+    - python
     - cartopy
     - cartopy_offlinedata
     - cmocean
@@ -52,16 +51,16 @@ requirements:
     - jigsawpy 0.3.3
     - jupyter
     - lxml
-    - mache 1.0.0
+    - mache >=1.1.4
     - matplotlib-base
     - metis
-    - mpas_tools 0.11.0
+    - mpas_tools 0.13.0
     - {{ mpi }}  # [mpi != 'nompi']
     - nco
     - netcdf4 * nompi_*
     - numpy
     - progressbar2
-    - pyamg
+    - pyamg >=4.2.2
     - pyremap >=0.0.13,<0.1.0
     - requests
     - scipy

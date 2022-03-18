@@ -108,10 +108,10 @@ def get_env_setup(args, config, machine, is_test, source_path, conda_base):
 
 def build_env(is_test, recreate, machine, compiler, mpi, conda_mpi, version,
               python, source_path, template_path, conda_base, activ_suffix,
-              env_name, env_suffix, activate_base):
+              env_name, env_suffix, activate_base, use_local):
 
     if compiler is not None or is_test:
-        build_dir = 'conda/build{}'.format(activ_suffix)
+        build_dir = f'conda/build{activ_suffix}'
 
         try:
             shutil.rmtree(build_dir)
@@ -126,92 +126,97 @@ def build_env(is_test, recreate, machine, compiler, mpi, conda_mpi, version,
 
     if is_test:
         if env_name is None:
-            env_name = 'dev_compass_{}{}'.format(version, env_suffix)
+            env_name = f'dev_compass_{version}{env_suffix}'
     else:
-        env_name = 'compass_{}{}'.format(version, env_suffix)
+        env_name = f'compass_{version}{env_suffix}'
     env_path = os.path.join(conda_base, 'envs', env_name)
 
     if conda_mpi == 'nompi':
         mpi_prefix = 'nompi'
     else:
-        mpi_prefix = 'mpi_{}'.format(mpi)
+        mpi_prefix = f'mpi_{mpi}'
 
-    channels = '--override-channels -c conda-forge -c defaults'
+    channels = ['-c conda-forge', '-c defaults']
+    if use_local:
+        channels = ['--use-local'] + channels
     if machine is None or not is_test:
         # we need libpnetcdf and scorpio from the e3sm channel, compass label
-        channels = '{} -c e3sm/label/compass'.format(channels)
-    packages = 'python={}'.format(python)
+        channels = channels + ['-c e3sm/label/compass']
+
+    channels = f'--override-channels {" ".join(channels)}'
+    packages = f'python={python}'
 
     base_activation_script = os.path.abspath(
-        '{}/etc/profile.d/conda.sh'.format(conda_base))
+        f'{conda_base}/etc/profile.d/conda.sh')
 
     activate_env = \
-        'source {}; conda activate {}'.format(base_activation_script, env_name)
+        f'source {base_activation_script}; conda activate {env_name}'
 
-    with open('{}/spec-file.template'.format(template_path), 'r') as f:
+    with open(f'{template_path}/spec-file.template', 'r') as f:
         template = Template(f.read())
 
     if is_test:
         spec_file = template.render(mpi=conda_mpi, mpi_prefix=mpi_prefix)
 
-        spec_filename = 'spec-file-{}.txt'.format(conda_mpi)
+        spec_filename = f'spec-file-{conda_mpi}.txt'
         with open(spec_filename, 'w') as handle:
             handle.write(spec_file)
     else:
         spec_filename = None
 
     if not os.path.exists(env_path) or recreate:
-        print('creating {}'.format(env_name))
+        print(f'creating {env_name}')
         if is_test:
             # install dev dependencies and compass itself
             commands = \
-                '{}; ' \
-                'mamba create -y -n {} {} ' \
-                '--file {} {}'.format(activate_base, env_name, channels,
-                                      spec_filename, packages)
+                f'{activate_base}; ' \
+                f'mamba create -y -n {env_name} {channels} ' \
+                f'--file {spec_filename} {packages}'
             check_call(commands)
 
             commands = \
-                '{}; ' \
-                'cd {}; ' \
-                'python -m pip install -e .'.format(activate_env, source_path)
+                f'{activate_env}; ' \
+                f'cd {source_path}; ' \
+                f'python -m pip install -e .'
             check_call(commands)
 
         else:
-            packages = '{} "compass={}={}_*"'.format(
-                packages, version, mpi_prefix)
-            commands = '{}; mamba create -y -n {} {} {}'.format(
-                activate_base, env_name, channels, packages)
+            packages = f'{packages} "compass={version}={mpi_prefix}_*"'
+            commands = f'{activate_base}; ' \
+                       f'mamba create -y -n {env_name} {channels} {packages}'
             check_call(commands)
     else:
         if is_test:
-            print('updating {}'.format(env_name))
+            print(f'updating {env_name}')
             # install dev dependencies and compass itself
             commands = \
-                '{}; ' \
-                'mamba install -y -n {} {} ' \
-                '--file {} {}'.format(activate_base, env_name, channels,
-                                      spec_filename, packages)
+                f'{activate_base}; ' \
+                f'mamba install -y -n {env_name} {channels} ' \
+                f'--file {spec_filename} {packages}'
             check_call(commands)
 
             commands = \
-                '{}; ' \
-                'cd {}; ' \
-                'python -m pip install -e .'.format(activate_env, source_path)
+                f'{activate_env}; ' \
+                f'cd {source_path}; ' \
+                f'python -m pip install -e .'
             check_call(commands)
         else:
-            print('{} already exists'.format(env_name))
+            print(f'{env_name} already exists')
 
     return env_path, env_name, activate_env
 
 
 def get_sys_info(machine, compiler, mpilib, mpicc, mpicxx, mpifc,
-                 mod_commands):
+                 mod_commands, env_vars):
 
     if machine is None:
         machine = 'None'
 
-    env_vars = []
+    # convert env vars from mache to a list
+    env_list = list()
+    for var in env_vars:
+        env_list.append(f'export {var}={env_vars[var]}')
+    env_vars = env_list
 
     if 'intel' in compiler:
         esmf_compilers = '    export ESMF_COMPILER=intel'
@@ -278,7 +283,8 @@ def get_sys_info(machine, compiler, mpilib, mpicc, mpicxx, mpifc,
 
 def build_system_libraries(config, machine, compiler, mpi, version,
                            template_path, env_path, env_name, activate_base,
-                           activate_env, mpicc, mpicxx, mpifc, mod_commands):
+                           activate_env, mpicc, mpicxx, mpifc, mod_commands,
+                           env_vars):
 
     if machine is not None:
         esmf = config.get('deploy', 'esmf')
@@ -310,7 +316,7 @@ def build_system_libraries(config, machine, compiler, mpi, version,
         force_build = True
 
     sys_info = get_sys_info(machine, compiler, mpi, mpicc, mpicxx,
-                            mpifc, mod_commands)
+                            mpifc, mod_commands, env_vars)
 
     if esmf != 'None':
         sys_info['env_vars'].append('export PATH="{}:$PATH"'.format(
@@ -617,6 +623,8 @@ def main():
     if not args.env_only:
         if args.machine is None:
             machine = discover_machine()
+        else:
+            machine = args.machine
         if machine is not None:
             machine_info = MachineInfo(machine=machine)
 
@@ -651,25 +659,26 @@ def main():
             compiler = 'gnu'
 
     if machine_info is not None:
-        mpicc, mpicxx, mpifc, mod_commands = \
+        mpicc, mpicxx, mpifc, mod_commands, env_vars = \
             machine_info.get_modules_and_mpi_compilers(compiler, mpi)
     else:
         # using conda-forge compilers
         mpicc = 'mpicc'
         mpicxx = 'mpicxx'
         mpifc = 'mpifort'
-        mod_commands = []
+        mod_commands = list()
+        env_vars = dict()
 
     env_path, env_name, activate_env = build_env(
         is_test, recreate, machine, compiler, mpi, conda_mpi, version, python,
         source_path, template_path, conda_base, activ_suffix, args.env_name,
-        env_suffix, activate_base)
+        env_suffix, activate_base, args.use_local)
 
     if compiler is not None:
         sys_info, system_libs = build_system_libraries(
             config, machine, compiler, mpi, version, template_path, env_path,
             env_name, activate_base, activate_env, mpicc, mpicxx, mpifc,
-            mod_commands)
+            mod_commands, env_vars)
     else:
         sys_info = dict(modules=[], env_vars=[], mpas_netcdf_paths='')
         system_libs = None
